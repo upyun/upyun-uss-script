@@ -16,3 +16,16 @@
 + [C SDK](https://github.com/upyun/c-sdk)
 + [微信小程序 SDK](https://github.com/upyun/wechat-sdk)
 
+
+
+#### 功能导航
+
++ 统计空间目录大小
++ 删除文件
+  + Python脚本
+  + PHP 脚本
+  + go语言可执行二进制脚本 （强烈推荐）
++ 下载文件脚本
++ 列出存储文件列表脚本
++ 将存储 A 文件迁移到存储 B 脚本
++ 缓存刷新脚本
