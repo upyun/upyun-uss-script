@@ -1,5 +1,7 @@
 # 脚本使用说明
 
+#### 介绍
+
 仓库中为 PHP，Python，以及 go 语言根据又拍云 REST API 编写而成的，方便管理 [USS (UPYUN Storage Service)](https://www.upyun.com/products/file-storage) 中文件的脚本。更多存储接口功能可以参考 [REST API](https://help.upyun.com/knowledge-base/rest_api/) 。
 
 除此之外，又拍云还为 [USS](https://www.upyun.com/products/file-storage) 提供了常见语言的 [SDK](https://help.upyun.com/knowledge-base/tools-storage-process-sdk/) 。可以点击下方链接快速到达。
@@ -18,7 +20,7 @@
 
 
 
-#### 功能导航
+#### 脚本导航
 
 + 统计空间目录大小
 + 删除文件
