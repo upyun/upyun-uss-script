@@ -1,19 +1,12 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# author: support@upyun.com
-
-from base64 import b64encode
-import requests
-import upyun
-import urllib
-import Queue
-
+import sys
 # ----------待拉取的服务名操作员信息-------------
 origin_bucket = ''  # (必填) 待拉取的服务名
 origin_username = ''  # (必填) 待拉取的服务名下授权的操作员名
 origin_password = ''  # (必填) 待拉取服务名下授权操作员的密码
 host = ''  # (必填)  待拉取的服务名的访问域名, 请使用 http// 或者 https:// 开头, 比如 'http://techs.upyun.com'
-origin_path = '/'  # (必填) 待拉取的资源路径 (默认会拉取根目录下面的所有目录的文件)
+origin_path = ''  # (必填) 待拉取的资源路径 (默认会拉取根目录下面的所有目录的文件)
 # --------------------------------------------
 
 # ----------目标迁移服务名, 操作员信息-------------
@@ -23,12 +16,22 @@ target_password = ''  # (必填) 文件迁移的目标服务名的授权操作�
 save_as_prefix = ''  # (选填) 目标服务名的保存路径的前置路径 (如果不填写, 默认迁移后的路径和原路径相同)
 # --------------------------------------------
 
-notify_url = 'http://your_notify_url'  # 将回调地址改成自己的服务器地址, 用来接收又拍云 POST 过来的异步拉取结果
+notify_url = ''  # 将回调地址改成自己的服务器地址, 用来接收又拍云 POST 过来的异步拉取结果
 
 # --------------------------------------------
 
 
-queue = Queue.LifoQueue()
+from base64 import b64encode
+import requests
+import upyun
+try:
+    import urllib.parse
+    import queue
+except Exception as e:
+    import Queue as queue
+    import urllib
+
+queue = queue.LifoQueue()
 
 
 def push_tasks(url, up):
@@ -47,11 +50,15 @@ def push_tasks(url, up):
 
 def do_http_request(method, key, upyun_iter):
     uri = '/' + origin_bucket + (lambda x: x[0] == '/' and x or '/' + x)(key)
-    if isinstance(uri, unicode):
-        uri = uri.encode('utf-8')
-    uri = urllib.quote(uri)
+    try:
+        uri = urllib.parse.quote(uri)
+    except Exception as e:
+        if isinstance(uri, unicode):
+            uri = uri.encode('utf-8')
+        uri = urllib.quote(uri)
     headers = {
-        'Authorization': 'Basic ' + b64encode(origin_username + ':' + origin_password),
+        'Authorization': 'Basic ' + b64encode(
+            (origin_username + ':' + origin_password).encode()).decode(),
         'User-Agent': 'up-python-script',
         'X-List-Limit': '300'
     }
@@ -65,7 +72,10 @@ def do_http_request(method, key, upyun_iter):
         response = session.request(method, url, headers=headers, timeout=30)
         status = response.status_code
         if status == 200:
-            content = response.content
+            try:
+                content = response.content.decode()
+            except Exception as e:
+                content = response.content
             try:
                 iter_header = response.headers['x-upyun-list-iter']
             except Exception as e:
@@ -108,12 +118,12 @@ def get_list(path):
                         if i['type'] == 'F':
                             queue.put(new_path)
                         elif i['type'] == 'N':
-                            print new_path
+                            print(new_path)
                             if save_as_prefix:
                                 new_path = save_as_prefix + new_path
                                 push_tasks(new_path, up)
                     except Exception as e:
-                        print e
+                        print(e)
             else:
                 if not queue.empty():
                     path = queue.get()

@@ -1,18 +1,27 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-
+#!/usr/bin/env python
+# -*- coding: utf8 -*-
 
 from base64 import b64encode
 import requests
 import os
-import urllib
 import time
-import getpass
+try:
+    import urllib.parse
+    # from urllib.parse import quote
+    import queue
+except ImportError:
+    # from urllib import quote
+    import Queue as queue
+    import urllib
+    # import sys
+    # reload(sys)
+    # sys.setdefaultencoding("utf-8")
 
 # -----------------------
-bucket = raw_input("Please enter your serverName:")
-username = raw_input("Please enter your userName:")
-password = getpass.getpass("Plaser enter your Password:")
+bucket = ''  # 服务名
+username = ''  # 操作员名
+password = ''  # 操作员密码
+path = ''
 # -----------------------
 
 count = 0
@@ -23,12 +32,14 @@ def do_http_request(method, key, params, of):
     chunk_size = 8192
     global requests_count
     uri = '/' + bucket + (lambda x: x[0] == '/' and x or '/' + x)(key)
-    if isinstance(uri, unicode):
-        uri = uri.encode('utf-8')
-    uri = urllib.quote(uri)
-
+    try:
+        uri = urllib.parse.quote(uri)
+    except Exception as e:
+        if isinstance(uri, unicode):
+            uri = uri.encode('utf8')
+        uri = urllib.quote(uri)
     headers = {}
-    headers['Authorization'] = 'Basic ' + b64encode(username + ':' + password)
+    headers['Authorization'] = 'Basic ' + b64encode((username + ':' + password).encode()).decode()
     headers['User-Agent'] = "UPYUN_DOWNLOAD_SCRIPT"
     if params is not None:
         if params['x-list-iter'] is not None or not 'g2gCZAAEbmV4dGQAA2VvZg':
@@ -62,7 +73,10 @@ def do_http_request(method, key, params, of):
             return True
         elif method == 'GET' and of is None:
 
-            content = response.content
+            try:
+                content = response.content.decode()
+            except Exception as e:
+                content = response.content
             try:
                 iter_header = response.headers['x-upyun-list-iter']
             except Exception as e:
@@ -71,7 +85,7 @@ def do_http_request(method, key, params, of):
         elif method == 'HEAD':
             return response.headers['content-length']
     else:
-        print 'status: ' + str(status)
+        print('status: ' + str(status))
         if requests_count == 4:
             requests_count = 0
             with open('download_error.txt', 'a') as f:
@@ -110,7 +124,7 @@ def download_file(path, params):
                     if not os.path.exists(bucket + path):
                         os.makedirs(bucket + path)
                 except OSError as e:
-                    print 'something wrong when mkdir: ' + str(e)
+                    print('something wrong when mkdir: ' + str(e))
                 save_path = os.getcwd() + '/' + bucket + new_path
                 content_length = do_http_request('HEAD', new_path, params=None, of=None)
                 if not os.path.isfile(save_path) or os.path.getsize(save_path) == 0 or int(os.path.getsize(
@@ -119,12 +133,12 @@ def download_file(path, params):
                         download_result = do_http_request('GET', new_path, params=None, of=f)
                         if download_result:
                             count += 1
-                            print str(count) + '---->' + save_path
+                            print(str(count) + '---->' + save_path)
                 else:
                     count += 1
-                    print str(count) + '----> file already downloaded'
+                    print(str(count) + '----> file already downloaded')
         except Exception as e:
-            print str(e)
+            print(str(e))
             with open('download_error.txt', 'a') as f:
                 f.write(new_path + '\n')
     if res[-1] != 'g2gCZAAEbmV4dGQAA2VvZg':
@@ -140,13 +154,12 @@ def download_file_with_iter(path):
     }
     return download_file(path, params)
 
-
 if __name__ == '__main__':
     if len(str.strip(bucket)) == 0 or len(str.strip(username)) == 0 or len(str.strip(password)) == 0:
-        print "401 buket or username and password  is null"
+        print("401 buket or username and password  is null")
     else:
-        path = raw_input('input a path( e.g: "/" ) : ')
-        while len(path) == 0:
-            path = raw_input('input a path( e.g: "/" ) : ')
+        # path = ('input a path( e.g: "/" ) : ')
+        # while len(path) == 0:
+            # path = input('input a path( e.g: "/" ) : ')
         download_file_with_iter(path)
-        print str(count) + ':Done!'
+        print(str(count) + ':Done!')

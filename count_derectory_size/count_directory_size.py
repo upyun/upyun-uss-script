@@ -1,29 +1,41 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import division
 from base64 import b64encode
 import requests
-import urllib
-import Queue
+try:
+    import urllib.parse
+    # from urllib.parse import quote
+    import queue
+except ImportError:
+    # from urllib import quote
+    import Queue as queue
+    import urllib
+    import sys
+    reload(sys)
+    sys.setdefaultencoding("utf-8")
 
 # -----------------------
-bucket = ''
-username = ''
-password = ''
+bucket = ''  # 服务名
+username = ''  # 操作员账号
+password = ''  # 操作员密码
 
-path = '/'
+path = ''  # 指定资源路径
 # -----------------------
 
-queue = Queue.LifoQueue()
+queue = queue.LifoQueue()
 
 
 def do_http_request(method, key, upyun_iter):
     uri = '/' + bucket + (lambda x: x[0] == '/' and x or '/' + x)(key)
-    if isinstance(uri, unicode):
-        uri = uri.encode('utf-8')
-    uri = urllib.quote(uri)
+    try:
+        uri = urllib.parse.quote(uri)
+    except Exception as e:
+        if isinstance(uri, unicode):
+            uri = uri.encode("utf8")
+        uri = urllib.quote(uri)
     headers = {
-        'Authorization': 'Basic ' + b64encode(username + ':' + password),
+        'Authorization': 'Basic ' + b64encode((username + ':' + password).encode()).decode(),
         'User-Agent': 'up-python-script',
         'X-List-Limit': '300'
     }
@@ -37,7 +49,7 @@ def do_http_request(method, key, upyun_iter):
         response = session.request(method, url, headers=headers, timeout=30)
         status = response.status_code
         if status == 200:
-            content = response.content
+            content = response.content.decode()
             try:
                 iter_header = response.headers['x-upyun-list-iter']
             except Exception as e:
@@ -80,10 +92,10 @@ def count_dir_size(path):
                         if i['type'] == 'F':
                             queue.put(new_path)
                         elif i['type'] == 'N':
-                            print 'size ++ ----> {0} B'.format(size)
+                            print('size ++ ----> {0} B'.format(size))
                             size += int(i['size'])
                     except Exception as e:
-                        print e
+                        print(e)
             else:
                 if not queue.empty():
                     path = queue.get()
@@ -101,5 +113,6 @@ def count_dir_size(path):
 
 if __name__ == '__main__':
     size = count_dir_size(path)
-    print "Job's Done!"
-    print 'your path: "{0}" , total size: "{1}" GB'.format(path, size)
+    print("Job's Done!")
+    print('your path: "{0}" , total size: "{1}" GB'.format(path, size))
+    # print('your path: "{0}" , total size: "{1}" GB'.format(path, size))
