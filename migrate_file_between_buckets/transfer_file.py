@@ -16,231 +16,127 @@ target_password = ''  # (必填) 文件迁移的目标服务名的授权操作�
 save_as_prefix = ''  # (选填) 目标服务名的保存路径的前置路径 (如果不填写, 默认迁移后的路径和原路径相同)
 # --------------------------------------------
 
-notify_url = 'https://uptool.tingfun.net/echo.php'  # 将回调地址改成自己的服务器地址, 用来接收又拍云 POST 过来的异步拉取结果
+notify_url = ''  # 将回调地址改成自己的服务器地址, 用来接收又拍云 POST 过来的异步拉取结果
 
 # --------------------------------------------
 
 
-
-PY3 = sys.version_info[0] == 3
-
-if PY3:
-    from base64 import b64encode
-    import requests
-    import upyun
+from base64 import b64encode
+import requests
+import upyun
+try:
     import urllib.parse
     import queue
-
-
-
-
-    queue = queue.LifoQueue()
-
-
-    def push_tasks(url, up):
-        fetch_data = [
-            {
-                'url': host + url,  # 需要拉取文件的 URL
-                'random': False,  # 是否追加随机数, 默认 false
-                'overwrite': True,  # 是否覆盖，默认 True
-                'save_as': url
-            }
-        ]
-
-        result = up.put_tasks(fetch_data, notify_url, 'spiderman')
-        return result
-
-
-    def do_http_request(method, key, upyun_iter):
-        uri = '/' + origin_bucket + (lambda x: x[0] == '/' and x or '/' + x)(key)
-        uri = urllib.parse.quote(uri)
-        headers = {
-            'Authorization': 'Basic ' + b64encode(
-                (origin_username + ':' + origin_password).encode()).decode(),
-            'User-Agent': 'up-python-script',
-            'X-List-Limit': '300'
-        }
-        if upyun_iter is not None or upyun_iter is not 'g2gCZAAEbmV4dGQAA2VvZg':
-            headers['x-list-iter'] = upyun_iter
-
-        url = "http://v0.api.upyun.com" + uri
-        requests.adapters.DEFAULT_RETRIES = 5
-        session = requests.session()
-        try:
-            response = session.request(method, url, headers=headers, timeout=30)
-            status = response.status_code
-            if status == 200:
-                content = response.content.decode()
-                try:
-                    iter_header = response.headers['x-upyun-list-iter']
-                except Exception as e:
-                    iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
-                data = {
-                    'content': content,
-                    'iter_header': iter_header
-                }
-                return data
-            else:
-                return None
-        except Exception as e:
-            return None
-
-
-    def sort_data(key, upyun_iter):
-        result = do_http_request('GET', key, upyun_iter)
-        if not result:
-            return None
-        content = result['content']
-        items = content.split('\n')
-        content = [dict(zip(['name', 'type', 'size', 'time'],
-                            x.split('\t'))) for x in items] + result['iter_header'].split()
-        return content
-
-
-    def get_list(path):
-        upyun_iter = None
-        up = upyun.UpYun(target_bucket, target_username, target_password)
-        while True:
-            while upyun_iter != 'g2gCZAAEbmV4dGQAA2VvZg':
-                res = sort_data(path, upyun_iter)
-                if res:
-                    upyun_iter = res[-1]
-                    for i in res[:-1]:
-                        try:
-                            if not i['name']:
-                                continue
-                            new_path = path + i['name'] if path == '/' else path + '/' + i['name']
-                            if i['type'] == 'F':
-                                queue.put(new_path)
-                            elif i['type'] == 'N':
-                                print(new_path)
-                                if save_as_prefix:
-                                    new_path = save_as_prefix + new_path
-                                    push_tasks(new_path, up)
-                        except Exception as e:
-                            print(e)
-                else:
-                    if not queue.empty():
-                        path = queue.get()
-                        upyun_iter = None
-                        queue.task_done()
-            else:
-                if not queue.empty():
-                    path = queue.get()
-                    upyun_iter = None
-                    queue.task_done()
-                else:
-                    break
-
-
-    if __name__ == '__main__':
-        get_list(origin_path)
-else:
-    from base64 import b64encode
-    import requests
-    import upyun
+except Exception as e:
+    import Queue as queue
     import urllib
-    import Queue
 
-    queue = Queue.LifoQueue()
-
-
-    def push_tasks(url, up):
-        fetch_data = [
-            {
-                'url': host + url,  # 需要拉取文件的 URL
-                'random': False,  # 是否追加随机数, 默认 false
-                'overwrite': True,  # 是否覆盖，默认 True
-                'save_as': url
-            }
-        ]
-
-        result = up.put_tasks(fetch_data, notify_url, 'spiderman')
-        return result
+queue = queue.LifoQueue()
 
 
-    def do_http_request(method, key, upyun_iter):
-        uri = '/' + origin_bucket + (lambda x: x[0] == '/' and x or '/' + x)(key)
+def push_tasks(url, up):
+    fetch_data = [
+        {
+            'url': host + url,  # 需要拉取文件的 URL
+            'random': False,  # 是否追加随机数, 默认 false
+            'overwrite': True,  # 是否覆盖，默认 True
+            'save_as': url
+        }
+    ]
+
+    result = up.put_tasks(fetch_data, notify_url, 'spiderman')
+    return result
+
+
+def do_http_request(method, key, upyun_iter):
+    uri = '/' + origin_bucket + (lambda x: x[0] == '/' and x or '/' + x)(key)
+    try:
+        uri = urllib.parse.quote(uri)
+    except Exception as e:
         if isinstance(uri, unicode):
             uri = uri.encode('utf-8')
         uri = urllib.quote(uri)
-        headers = {
-            'Authorization': 'Basic ' + b64encode(origin_username + ':' + origin_password),
-            'User-Agent': 'up-python-script',
-            'X-List-Limit': '300'
-        }
-        if upyun_iter is not None or upyun_iter is not 'g2gCZAAEbmV4dGQAA2VvZg':
-            headers['x-list-iter'] = upyun_iter
+    headers = {
+        'Authorization': 'Basic ' + b64encode(
+            (origin_username + ':' + origin_password).encode()).decode(),
+        'User-Agent': 'up-python-script',
+        'X-List-Limit': '300'
+    }
+    if upyun_iter is not None or upyun_iter is not 'g2gCZAAEbmV4dGQAA2VvZg':
+        headers['x-list-iter'] = upyun_iter
 
-        url = "http://v0.api.upyun.com" + uri
-        requests.adapters.DEFAULT_RETRIES = 5
-        session = requests.session()
-        try:
-            response = session.request(method, url, headers=headers, timeout=30)
-            status = response.status_code
-            if status == 200:
+    url = "http://v0.api.upyun.com" + uri
+    requests.adapters.DEFAULT_RETRIES = 5
+    session = requests.session()
+    try:
+        response = session.request(method, url, headers=headers, timeout=30)
+        status = response.status_code
+        if status == 200:
+            try:
+                content = response.content.decode()
+            except Exception as e:
                 content = response.content
-                try:
-                    iter_header = response.headers['x-upyun-list-iter']
-                except Exception as e:
-                    iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
-                data = {
-                    'content': content,
-                    'iter_header': iter_header
-                }
-                return data
-            else:
-                return None
-        except Exception as e:
+            try:
+                iter_header = response.headers['x-upyun-list-iter']
+            except Exception as e:
+                iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
+            data = {
+                'content': content,
+                'iter_header': iter_header
+            }
+            return data
+        else:
             return None
+    except Exception as e:
+        return None
 
 
-    def sort_data(key, upyun_iter):
-        result = do_http_request('GET', key, upyun_iter)
-        if not result:
-            return None
-        content = result['content']
-        items = content.split('\n')
-        content = [dict(zip(['name', 'type', 'size', 'time'],
-                            x.split('\t'))) for x in items] + result['iter_header'].split()
-        return content
+def sort_data(key, upyun_iter):
+    result = do_http_request('GET', key, upyun_iter)
+    if not result:
+        return None
+    content = result['content']
+    items = content.split('\n')
+    content = [dict(zip(['name', 'type', 'size', 'time'],
+                        x.split('\t'))) for x in items] + result['iter_header'].split()
+    return content
 
 
-    def get_list(path):
-        upyun_iter = None
-        up = upyun.UpYun(target_bucket, target_username, target_password)
-        while True:
-            while upyun_iter != 'g2gCZAAEbmV4dGQAA2VvZg':
-                res = sort_data(path, upyun_iter)
-                if res:
-                    upyun_iter = res[-1]
-                    for i in res[:-1]:
-                        try:
-                            if not i['name']:
-                                continue
-                            new_path = path + i['name'] if path == '/' else path + '/' + i['name']
-                            if i['type'] == 'F':
-                                queue.put(new_path)
-                            elif i['type'] == 'N':
-                                print(new_path)
-                                if save_as_prefix:
-                                    new_path = save_as_prefix + new_path
-                                    push_tasks(new_path, up)
-                        except Exception as e:
-                            print(e)
-                else:
-                    if not queue.empty():
-                        path = queue.get()
-                        upyun_iter = None
-                        queue.task_done()
+def get_list(path):
+    upyun_iter = None
+    up = upyun.UpYun(target_bucket, target_username, target_password)
+    while True:
+        while upyun_iter != 'g2gCZAAEbmV4dGQAA2VvZg':
+            res = sort_data(path, upyun_iter)
+            if res:
+                upyun_iter = res[-1]
+                for i in res[:-1]:
+                    try:
+                        if not i['name']:
+                            continue
+                        new_path = path + i['name'] if path == '/' else path + '/' + i['name']
+                        if i['type'] == 'F':
+                            queue.put(new_path)
+                        elif i['type'] == 'N':
+                            print(new_path)
+                            if save_as_prefix:
+                                new_path = save_as_prefix + new_path
+                                push_tasks(new_path, up)
+                    except Exception as e:
+                        print(e)
             else:
                 if not queue.empty():
                     path = queue.get()
                     upyun_iter = None
                     queue.task_done()
-                else:
-                    break
+        else:
+            if not queue.empty():
+                path = queue.get()
+                upyun_iter = None
+                queue.task_done()
+            else:
+                break
 
 
-    if __name__ == '__main__':
-        get_list(origin_path)
+if __name__ == '__main__':
+    get_list(origin_path)
