@@ -13,8 +13,6 @@ import random
 import string
 import time
 
-nums = set()
-
 
 class QueryUpyun(object):
     """
