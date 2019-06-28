@@ -5,23 +5,19 @@ from base64 import b64encode
 import requests
 import os
 import time
+
 try:
     import urllib.parse
-    # from urllib.parse import quote
     import queue
 except ImportError:
-    # from urllib import quote
     import Queue as queue
     import urllib
-    # import sys
-    # reload(sys)
-    # sys.setdefaultencoding("utf-8")
 
 # -----------------------
-bucket = ''  # 服务名
-username = ''  # 操作员名
-password = ''  # 操作员密码
-path = ''
+# bucket = ''  # 服务名
+# username = ''  # 操作员名
+# password = ''  # 操作员密码
+# path = ''
 # -----------------------
 
 count = 0
@@ -83,7 +79,10 @@ def do_http_request(method, key, params, of):
                 iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
             return content + "`" + str(status) + "`" + str(iter_header)
         elif method == 'HEAD':
-            return response.headers['content-length']
+            try:
+                return response.headers['content-length']
+            except KeyError:
+                return response.headers['x-upyun-file-size']
     else:
         print('status: ' + str(status))
         if requests_count == 4:
@@ -154,12 +153,10 @@ def download_file_with_iter(path):
     }
     return download_file(path, params)
 
+
 if __name__ == '__main__':
     if len(str.strip(bucket)) == 0 or len(str.strip(username)) == 0 or len(str.strip(password)) == 0:
         print("401 buket or username and password  is null")
     else:
-        # path = ('input a path( e.g: "/" ) : ')
-        # while len(path) == 0:
-            # path = input('input a path( e.g: "/" ) : ')
         download_file_with_iter(path)
         print(str(count) + ':Done!')
