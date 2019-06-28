@@ -14,10 +14,10 @@ except ImportError:
     import urllib
 
 # -----------------------
-# bucket = ''  # 服务名
-# username = ''  # 操作员名
-# password = ''  # 操作员密码
-# path = ''
+bucket = ''  # 服务名
+username = ''  # 操作员名
+password = ''  # 操作员密码
+path = ''
 # -----------------------
 
 count = 0
