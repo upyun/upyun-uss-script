@@ -3,116 +3,79 @@
 from __future__ import division
 from base64 import b64encode
 import requests
-try:
-    import urllib.parse
-    # from urllib.parse import quote
-    import queue
-except ImportError:
-    # from urllib import quote
-    import Queue as queue
-    import urllib
-    import sys
-    reload(sys)
-    sys.setdefaultencoding("utf-8")
-
-# -----------------------
-bucket = ''  # 服务名
-username = ''  # 操作员账号
-password = ''  # 操作员密码
-
-path = ''  # 指定资源路径
-# -----------------------
-
-queue = queue.LifoQueue()
+import urllib.parse
+import queue
+from copy import deepcopy
 
 
-def do_http_request(method, key, upyun_iter):
-    uri = '/' + bucket + (lambda x: x[0] == '/' and x or '/' + x)(key)
-    try:
-        uri = urllib.parse.quote(uri)
-    except Exception as e:
-        if isinstance(uri, unicode):
-            uri = uri.encode("utf8")
-        uri = urllib.quote(uri)
-    headers = {
-        'Authorization': 'Basic ' + b64encode((username + ':' + password).encode()).decode(),
-        'User-Agent': 'up-python-script',
-        'X-List-Limit': '300'
-    }
-    if upyun_iter is not None or upyun_iter is not 'g2gCZAAEbmV4dGQAA2VvZg':
-        headers['x-list-iter'] = upyun_iter
+class QueryUpyun(object):
+    def __init__(self, bucket, username, password):
+        self.bucket = bucket
+        self.username = username
+        self.password = password
+        self.queue = queue.LifoQueue()
+        self.upyun_api = 'http://v0.api.upyun.com'
 
-    url = "http://v0.api.upyun.com" + uri
-    requests.adapters.DEFAULT_RETRIES = 5
-    session = requests.session()
-    try:
-        response = session.request(method, url, headers=headers, timeout=30)
-        status = response.status_code
-        if status == 200:
-            content = response.content.decode()
-            try:
-                iter_header = response.headers['x-upyun-list-iter']
-            except Exception as e:
-                iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
-            data = {
-                'content': content,
-                'iter_header': iter_header
-            }
-            return data
-        else:
+    def _auth(self):
+        req_headers = {
+            'Authorization': 'Basic ' + b64encode((self.username + ':' + self.password).encode()).decode(),
+            'User-Agent': 'up-python-script',
+            'X-List-Limit': '300'
+        }
+        return req_headers
+
+    def read_uss(self, uri, upyun_iter):
+        key = urllib.parse.quote('/' + self.bucket + (lambda x: x[0] == '/' and x or '/' + x)(uri))
+        headers = deepcopy(self._auth())
+        if upyun_iter and upyun_iter != 'g2gCZAAEbmV4dGQAA2VvZg':
+            headers.update({'x-list-iter': upyun_iter})
+        url = self.upyun_api + key
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            if response.status_code == 200:
+                content = response.content.decode()
+                try:
+                    iter_header = response.headers['x-upyun-list-iter']
+                except KeyError as e:
+                    iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
+                items = content.split('\n')
+                resp = [dict(zip(['name', 'type', 'size', 'time'], x.split('\t'))) for x in items]
+                resp.append(iter_header)
+                return resp
+            else:
+                print(response.status_code, response.content)
+                return None
+        except Exception as e:
+            print(e)
             return None
-    except Exception as e:
-        return None
 
-
-def getlist(key, upyun_iter):
-    result = do_http_request('GET', key, upyun_iter)
-    if not result:
-        return None
-    content = result['content']
-    items = content.split('\n')
-    content = [dict(zip(['name', 'type', 'size', 'time'],
-                        x.split('\t'))) for x in items] + result['iter_header'].split()
-    return content
-
-
-def count_dir_size(path):
-    upyun_iter = None
-    size = 0
-    while True:
-        while upyun_iter != 'g2gCZAAEbmV4dGQAA2VvZg':
-            res = getlist(path, upyun_iter)
-            if res:
-                upyun_iter = res[-1]
-                for i in res[:-1]:
-                    try:
-                        if not i['name']:
-                            continue
-                        new_path = path + i['name'] if path == '/' else path + '/' + i['name']
-                        if i['type'] == 'F':
-                            queue.put(new_path)
-                        elif i['type'] == 'N':
-                            print('size ++ ----> {0} B'.format(size))
-                            size += int(i['size'])
-                    except Exception as e:
-                        print(e)
+    def recursion_count(self, path, size=0, upyun_iter=None):
+        file_list = self.read_uss(path, upyun_iter)
+        if not file_list:
+            return None
+        iter = file_list.pop()
+        for item in file_list:
+            if not item['name']:
+                continue
+            new_path = path + item['name'] if path == '/' else path + '/' + item['name']
+            if item['type'] == 'F':
+                self.queue.put(new_path)
             else:
-                if not queue.empty():
-                    path = queue.get()
-                    upyun_iter = None
-                    queue.task_done()
-        else:
-            if not queue.empty():
-                path = queue.get()
-                upyun_iter = None
-                queue.task_done()
-            else:
-                break
-    return size / 1024 / 1024 / 1024
+                print('size += {} B ----> {}'.format(size, new_path))
+                size += int(item['size'])
+        if iter != 'g2gCZAAEbmV4dGQAA2VvZg':
+            self.recursion_count(path, size=size, upyun_iter=iter)
+        return size
+
+    def count(self, path):
+        file_size = self.recursion_count(size=0, path=path)
+        while not self.queue.empty():
+            file_size = self.recursion_count(size=file_size, path=self.queue.get())
+        return file_size / 1024 / 1024 / 1024
 
 
 if __name__ == '__main__':
-    size = count_dir_size(path)
-    print("Job's Done!")
-    print('your path: "{0}" , total size: "{1}" GB'.format(path, size))
-    # print('your path: "{0}" , total size: "{1}" GB'.format(path, size))
+    query_upyun = QueryUpyun(bucket='', username='', password='')
+    path = ''
+    dir_size = query_upyun.count(path)
+    print('total {} GB'.format(dir_size))

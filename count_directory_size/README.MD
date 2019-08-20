@@ -3,26 +3,35 @@
 本脚本适合少量数据统计，超大服务名的统计，需要参考脚本和接口进行完善
 
 ####依赖:
+```
+python 3
+```
 
-```python
-sudo pip install requests
+```
+pip install requests
 ```
 
 ####统计目录内文件大小的方法:
 
-```python
-bucket = ''
-username = ''
-password = ''
+在脚本 main 中完善相关参数，其中：
 
-path = ''
+1. bucket：存储服务名
+2. username：操作员名
+3. password：操作员密码
+4. path：需要统计的目录，比如根目录：'/'，img图片目录：'/img'
+
+
+```
+if __name__ == '__main__':
+    query_upyun = QueryUpyun(bucket='', username='', password='')
+    path = ''
+    dir_size = query_upyun.count(path)
+    print('total {} GB'.format(dir_size))
 ```
 
-在脚本中填入上述参数。分别是**服务名**，**操作员名**，**操作员密码**，和**待统计的路径。**
 
-比如:
 
-然后 python count_directory_size.py 进行删除.
+然后 python count_directory_size.py 运行脚本
 
 #### 其他
 
