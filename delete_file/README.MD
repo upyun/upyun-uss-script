@@ -1,28 +1,38 @@
-####依赖:
+#### 说明
 
-sudo pip install requests
+本脚本适合少量数据单线程删除，超大服务名的数据删除，需要参考脚本和接口进行完善
 
-
-###视频教程
-
-https://techs.b0.upaiyun.com/videos/cdnpage/delete_file.html
-
-
-####删除方法:
+#### 依赖:
+```
+python 3
+```
 
 ```
-bucket = ''
-username = ''
-password = ''
-
-path = ''
+pip install requests
 ```
+
+#### 删除指定目录的文件的方法:
+
+在脚本 main 中完善相关参数，其中：
+
+1. bucket：存储服务名
+2. username：操作员名
+3. password：操作员密码
+4. path：需要统计的目录，比如根目录：'/'，img图片目录：'/img'
 
 在脚本中填入上述参数。分别是服务名，操作员名，操作员密码，和待删除的路径。
 
+```
+if __name__ == '__main__':
+    query_upyun = QueryUpyun(bucket='', username='', password='')
+    path = ''
+    query_upyun.delete(path)
+```
+
 然后 python delete_file.py 进行删除.
 
-后台运行:
+
+#### 后台运行:
 
 1.Centos/RedHad
 ```

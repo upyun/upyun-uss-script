@@ -90,4 +90,4 @@ class QueryUpyun(object):
 if __name__ == '__main__':
     query_upyun = QueryUpyun(bucket='', username='', password='')
     path = ''
-    dir_size = query_upyun.delete(path)
+    query_upyun.delete(path)
