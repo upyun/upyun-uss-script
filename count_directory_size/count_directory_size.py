@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import division
 from base64 import b64encode
 import requests
 import urllib.parse
@@ -49,7 +48,7 @@ class QueryUpyun(object):
             print(e)
             return None
 
-    def recursion_count(self, path, size=0, upyun_iter=None):
+    def recursion_count(self, path, size, upyun_iter=None):
         file_list = self.read_uss(path, upyun_iter)
         if not file_list:
             return None
@@ -64,7 +63,7 @@ class QueryUpyun(object):
                 print('size += {} B ----> {}'.format(size, new_path))
                 size += int(item['size'])
         if iter != 'g2gCZAAEbmV4dGQAA2VvZg':
-            self.recursion_count(path, size=size, upyun_iter=iter)
+            self.recursion_count(path, size, upyun_iter=iter)
         return size
 
     def count(self, path):
