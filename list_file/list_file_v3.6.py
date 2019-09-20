@@ -86,8 +86,8 @@ class ListFile(QueryUpyun):
 
     def list_file(self, path):
         self.recursion_filter(path=path)
+        print('Type \n\n\ttail -f {}/{}_file_list\n\ncommand to check your path list'.format(self.base_dir, self.bucket))
         while self.dir_list:
-            print(self.dir_list)
             pool_v2 = ThreadPool(10)
             pool_v2.map(self.recursion_filter, [path for path in self.dir_list])
             pool_v2.close()
