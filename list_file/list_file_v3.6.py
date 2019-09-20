@@ -80,9 +80,9 @@ class ListFile(QueryUpyun):
                 self.dir_list.append(new_path)
             else:
                 self.write_file(new_path)
-            self.clear_dir(path)
         if iter != 'g2gCZAAEbmV4dGQAA2VvZg':
             self.recursion_filter(path, upyun_iter=iter)
+        self.clear_dir(path)
 
     def list_file(self, path):
         self.recursion_filter(path=path)
