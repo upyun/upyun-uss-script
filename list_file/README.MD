@@ -1,19 +1,17 @@
 在脚本内部填写:
 
 ```
-# -----------------------
-bucket = ''  # 服务名
-username = ''  # 操作员名
-password = ''  # 操作员密码
-
-path = '' # 需要列文件列表的起始目录
-# -----------------------
+if __name__ == '__main__':
+    query_upyun = ListFile(bucket='', username='', password='')
+    path = '/'
 ```
+
+对应的 bucket，username, password
 
 填写无误后, 直接运行
 
 ```
-python list_file_with_iter.py
+python list_file_v3.6.py
 
 ```
 
