@@ -15,16 +15,17 @@ class QueryUpyun(object):
         self.password = password
         self.upyun_api = 'http://v0.api.upyun.com'
         self.dir_list = []
+        self.max_retry = 3
 
     def _auth(self):
         req_headers = {
             'Authorization': 'Basic ' + b64encode((self.username + ':' + self.password).encode()).decode(),
             'User-Agent': 'up-python-script',
-            'X-List-Limit': '300'
+            'X-List-Limit': '1000'
         }
         return req_headers
 
-    def read_uss(self, uri, upyun_iter):
+    def read_uss(self, uri, upyun_iter, retry=0):
         key = urllib.parse.quote('/' + self.bucket + (lambda x: x[0] == '/' and x or '/' + x)(uri))
         headers = deepcopy(self._auth())
         if upyun_iter and upyun_iter != 'g2gCZAAEbmV4dGQAA2VvZg':
@@ -43,6 +44,10 @@ class QueryUpyun(object):
                 resp.append(iter_header)
                 return resp
             else:
+                retry += 1
+                if retry <= self.max_retry:
+                    self.read_uss(uri, upyun_iter, retry=retry)
+
                 print(response.status_code, response.content)
                 return None
         except Exception as e:
@@ -55,9 +60,12 @@ class ListFile(QueryUpyun):
         super().__init__(username=username, bucket=bucket, password=password)
         self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    def write_file(self, line):
+    def write_file(self, line, error=False):
         with open(os.path.join(self.base_dir, '{}_file_list'.format(self.bucket)), 'a') as f:
             f.write(line + '\n')
+        if error:
+            with open(os.path.join(self.base_dir, '{}_error_list'.format(self.bucket)), 'a') as f:
+                f.write(line + '\n')
 
     def clear_dir(self, path):
         try:
@@ -69,6 +77,7 @@ class ListFile(QueryUpyun):
         file_list = self.read_uss(path, upyun_iter)
         if not file_list:
             self.clear_dir(path)
+            self.write_file(path, error=True)
             return None
         iter = file_list.pop()
         for item in file_list:
@@ -86,7 +95,17 @@ class ListFile(QueryUpyun):
 
     def list_file(self, path):
         self.recursion_filter(path=path)
-        print('Type \n\n\ttail -f {}/{}_file_list\n\ncommand to check your path list'.format(self.base_dir, self.bucket))
+        print(
+            'Type \n\n\t'
+            'tail -f {}/{}_file_list\n\n'
+            'command to check your path list\n'.format(self.base_dir, self.bucket)
+        )
+        print(
+            'Type \n\n\t'
+            'tail -f {}/{}_error_list\n\n'
+            'command to check error path list\n'.format(self.base_dir, self.bucket)
+        )
+
         while self.dir_list:
             pool_v2 = ThreadPool(10)
             pool_v2.map(self.recursion_filter, [path for path in self.dir_list])
