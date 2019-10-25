@@ -4,12 +4,13 @@ from base64 import b64encode
 import requests
 import urllib.parse
 import os
+import time
 from copy import deepcopy
 from multiprocessing.dummy import Pool as ThreadPool
 
 
 class QueryUpyun(object):
-    def __init__(self, bucket, username, password):
+    def __init__(self, bucket: str, username: str, password: str):
         self.bucket = bucket
         self.username = username
         self.password = password
@@ -17,7 +18,11 @@ class QueryUpyun(object):
         self.dir_list = []
         self.max_retry = 3
 
-    def _auth(self):
+    def _auth(self) -> dict:
+        """
+        生成又拍云 REST API 接口的请求头，使用 Basic 验证方式
+        :return:
+        """
         req_headers = {
             'Authorization': 'Basic ' + b64encode((self.username + ':' + self.password).encode()).decode(),
             'User-Agent': 'up-python-script',
@@ -25,7 +30,15 @@ class QueryUpyun(object):
         }
         return req_headers
 
-    def read_uss(self, uri, upyun_iter, retry=0):
+    def read_uss(self, uri: str, upyun_iter: str, retry: int = 0):
+        """
+        对又拍云 REST API 接口发起 GET 请求
+        文档地址：https://help.upyun.com/knowledge-base/rest_api/#e88eb7e58f96e79baee5bd95e69687e4bbb6e58897e8a1a8
+        :param uri: 请求的目录
+        :param upyun_iter: 分页参数
+        :param retry: 重试次数，默认 0 次，最大重试次数为 self.max_retry
+        :return: dict
+        """
         key = urllib.parse.quote('/' + self.bucket + (lambda x: x[0] == '/' and x or '/' + x)(uri))
         headers = deepcopy(self._auth())
         if upyun_iter and upyun_iter != 'g2gCZAAEbmV4dGQAA2VvZg':
@@ -56,11 +69,18 @@ class QueryUpyun(object):
 
 
 class ListFile(QueryUpyun):
-    def __init__(self, bucket, username, password):
+    def __init__(self, bucket: str, username: str, password: str):
         super().__init__(username=username, bucket=bucket, password=password)
         self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     def write_file(self, line, error=False):
+        """
+        写文件列表到本地文件方法
+        if error=True: 记录出现错误的文件目录
+        :param line: 文件地址
+        :param error: Boolean
+        :return: None
+        """
         with open(os.path.join(self.base_dir, '{}_file_list'.format(self.bucket)), 'a') as f:
             f.write(line + '\n')
         if error:
@@ -68,17 +88,32 @@ class ListFile(QueryUpyun):
                 f.write(line + '\n')
 
     def clear_dir(self, path):
+        """
+        删除列表中暂存的目录
+        :param path:
+        :return:
+        """
         try:
             self.dir_list.remove(path)
         except ValueError:
             pass
 
     def check_old_file_list(self):
+        """
+        脚本重新执行时，检查是否有老旧文件列表，有就重命名
+        :return:
+        """
         file_list_path = os.path.join(self.base_dir, '{}_file_list'.format(self.bucket))
         if os.path.exists(file_list_path):
-            os.remove(file_list_path)
+            os.rename(file_list_path, '{}_{}_bak'.format(file_list_path, str(int(time.time()))))
 
-    def list_file(self, dir_name, upyun_iter=None):
+    def list_file(self, dir_name: str, upyun_iter: str = None):
+        """
+        列文件列表，如果是文件，写入本地；如果是目录，暂存进 self.dir_list
+        :param dir_name:
+        :param upyun_iter:
+        :return:
+        """
         file_list = self.read_uss(dir_name, upyun_iter)
         if not file_list:
             self.clear_dir(dir_name)
@@ -96,13 +131,18 @@ class ListFile(QueryUpyun):
                 self.write_file(new_path)
         return iter_str
 
-    def cycle_filter(self, dir_name):
+    def cycle_filter(self, dir_name: str):
+        """
+        循环获取分页参数列文件
+        :param dir_name: 目录名
+        :return:
+        """
         iter_str = self.list_file(dir_name)
         while iter_str != 'g2gCZAAEbmV4dGQAA2VvZg':
             iter_str = self.list_file(dir_name, upyun_iter=iter_str)
         self.clear_dir(dir_name)
 
-    def main(self, dir_name):
+    def main(self, dir_name: str):
         self.check_old_file_list()
         self.cycle_filter(dir_name=dir_name)
         print(
