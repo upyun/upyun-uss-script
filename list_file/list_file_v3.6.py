@@ -15,7 +15,6 @@ class QueryUpyun(object):
         self.username = username
         self.password = password
         self.upyun_api = 'http://v0.api.upyun.com'
-        self.dir_list = []
         self.max_retry = 3
 
     def _auth(self) -> dict:
@@ -72,6 +71,7 @@ class ListFile(QueryUpyun):
     def __init__(self, bucket: str, username: str, password: str):
         super().__init__(username=username, bucket=bucket, password=password)
         self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.dir_list = []
 
     def write_file(self, line, error=False):
         """
@@ -146,19 +146,19 @@ class ListFile(QueryUpyun):
         self.check_old_file_list()
         self.cycle_filter(dir_name=dir_name)
         print(
-            '新开终端输入 \n\n\t'
-            'tail -f {}/{}_file_list\n\n'
+            '新开终端输入: \t'
+            'tail -f {}/{}_file_list\t'
             '查看文件列表情况\n'.format(self.base_dir, self.bucket)
         )
         print(
-            '新开终端输入 \n\n\t'
-            'tail -f {}/{}_error_list\n\n'
+            '新开终端输入: \t'
+            'tail -f {}/{}_error_list\t'
             '查看出现错误的文件列表\n'.format(self.base_dir, self.bucket)
         )
 
         while self.dir_list:
             pool_v2 = ThreadPool(10)
-            pool_v2.map(self.cycle_filter, [dir_name for dir_name in self.dir_list])
+            pool_v2.map(self.cycle_filter, self.dir_list)
             pool_v2.close()
             pool_v2.join()
 
