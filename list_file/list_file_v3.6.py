@@ -73,47 +73,57 @@ class ListFile(QueryUpyun):
         except ValueError:
             pass
 
-    def recursion_filter(self, path, upyun_iter=None):
-        file_list = self.read_uss(path, upyun_iter)
+    def check_old_file_list(self):
+        file_list_path = os.path.join(self.base_dir, '{}_file_list'.format(self.bucket))
+        if os.path.exists(file_list_path):
+            os.remove(file_list_path)
+
+    def list_file(self, dir_name, upyun_iter=None):
+        file_list = self.read_uss(dir_name, upyun_iter)
         if not file_list:
-            self.clear_dir(path)
-            self.write_file(path, error=True)
+            self.clear_dir(dir_name)
+            self.write_file(dir_name, error=True)
             return None
-        iter = file_list.pop()
+        iter_str = file_list.pop()
         for item in file_list:
             if not item['name']:
-                self.clear_dir(path)
+                self.clear_dir(dir_name)
                 continue
-            new_path = path + item['name'] if path == '/' else path + '/' + item['name']
+            new_path = dir_name + item['name'] if dir_name == '/' else dir_name + '/' + item['name']
             if item['type'] == 'F':
                 self.dir_list.append(new_path)
             else:
                 self.write_file(new_path)
-        if iter != 'g2gCZAAEbmV4dGQAA2VvZg':
-            self.recursion_filter(path, upyun_iter=iter)
-        self.clear_dir(path)
+        return iter_str
 
-    def list_file(self, path):
-        self.recursion_filter(path=path)
+    def cycle_filter(self, dir_name):
+        iter_str = self.list_file(dir_name)
+        while iter_str != 'g2gCZAAEbmV4dGQAA2VvZg':
+            iter_str = self.list_file(dir_name, upyun_iter=iter_str)
+        self.clear_dir(dir_name)
+
+    def main(self, dir_name):
+        self.check_old_file_list()
+        self.cycle_filter(dir_name=dir_name)
         print(
-            'Type \n\n\t'
+            '新开终端输入 \n\n\t'
             'tail -f {}/{}_file_list\n\n'
-            'command to check your path list\n'.format(self.base_dir, self.bucket)
+            '查看文件列表情况\n'.format(self.base_dir, self.bucket)
         )
         print(
-            'Type \n\n\t'
+            '新开终端输入 \n\n\t'
             'tail -f {}/{}_error_list\n\n'
-            'command to check error path list\n'.format(self.base_dir, self.bucket)
+            '查看出现错误的文件列表\n'.format(self.base_dir, self.bucket)
         )
 
         while self.dir_list:
             pool_v2 = ThreadPool(10)
-            pool_v2.map(self.recursion_filter, [path for path in self.dir_list])
+            pool_v2.map(self.cycle_filter, [dir_name for dir_name in self.dir_list])
             pool_v2.close()
             pool_v2.join()
 
 
 if __name__ == '__main__':
     query_upyun = ListFile(bucket='', username='', password='')
-    path = '/'
-    query_upyun.list_file(path)
+    initial_path = '/'
+    query_upyun.main(dir_name=initial_path)
