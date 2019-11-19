@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
+from base64 import b64encode
+import requests
+import upyun
+
+try:
+    import urllib.parse
+    import queue
+except Exception as e:
+    import Queue as queue
+    import urllib
 
 # ----------待拉取的服务名操作员信息-------------
 origin_bucket = ''  # (必填) 待拉取的服务名
@@ -21,17 +31,6 @@ notify_url = ''  # 将回调地址改成自己的服务器地址, 用来接收�
 
 # --------------------------------------------
 
-
-from base64 import b64encode
-import requests
-import upyun
-
-try:
-    import urllib.parse
-    import queue
-except Exception as e:
-    import Queue as queue
-    import urllib
 
 queue = queue.LifoQueue()
 
