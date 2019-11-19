@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
+
 # ----------待拉取的服务名操作员信息-------------
 origin_bucket = ''  # (必填) 待拉取的服务名
 origin_username = ''  # (必填) 待拉取的服务名下授权的操作员名
@@ -24,6 +25,7 @@ notify_url = ''  # 将回调地址改成自己的服务器地址, 用来接收�
 from base64 import b64encode
 import requests
 import upyun
+
 try:
     import urllib.parse
     import queue
@@ -43,7 +45,9 @@ def push_tasks(url, up):
             'save_as': url
         }
     ]
-
+    if not notify_url:
+        print('第 19 行 notify_url 参数不能为空')
+        sys.exit(0)
     result = up.put_tasks(fetch_data, notify_url, 'spiderman')
     return result
 
@@ -121,7 +125,7 @@ def get_list(path):
                             print(new_path)
                             if save_as_prefix:
                                 new_path = save_as_prefix + new_path
-                                push_tasks(new_path, up)
+                            push_tasks(new_path, up)
                     except Exception as e:
                         print(e)
             else:
