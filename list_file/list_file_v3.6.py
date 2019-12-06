@@ -54,7 +54,7 @@ class QueryUpyun(object):
                 except KeyError as e:
                     iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
                 items = content['files']
-                resp = [{'name': x['name'], 'type': x['type'], 'size': x['length'], 'time': x['last_modified']} for x in
+                resp = [dict(name=x['name'], type=x['type'], size=x['length'], time=x['last_modified']) for x in
                         items]
                 resp.append(iter_header)
                 return resp
