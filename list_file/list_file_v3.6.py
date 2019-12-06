@@ -172,7 +172,7 @@ class ListFile(QueryUpyun):
 
 if __name__ == '__main__':
     # `bucket`, `username`, `password` 参数分别对应为云存储的 `服务名`，`操作员名`，`操作员密码`， 请补充自己的信息
-    # detail 参数默认为 False，如果设置为 True，将列出文件的 `文件路径`，`文件类型`，`文件大小`
+    # `detail` 参数默认为 False，如果设置为 True，将同时列出文件的 `文件路径`，`文件类型`，`文件大小`，否则只列出`文件路径`
     # initial_path 默认为 '/' 从存储根目录开始列文件列表，可以自行指定目录，比如：initial_path = '/tmp', 列出 `/tmp` 路径下面的文件
     query_upyun = ListFile(bucket='', username='', password='', detail=False)
     initial_path = '/'
