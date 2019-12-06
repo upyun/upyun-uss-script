@@ -22,10 +22,12 @@ class QueryUpyun(object):
         生成又拍云 REST API 接口的请求头，使用 Basic 验证方式
         :return:
         """
+        basic_auth = b64encode((self.username + ':' + self.password).encode()).decode()
         req_headers = {
-            'Authorization': 'Basic ' + b64encode((self.username + ':' + self.password).encode()).decode(),
+            'Authorization': 'Basic {}'.format(basic_auth),
             'User-Agent': 'up-python-script',
-            'X-List-Limit': '1000'
+            'X-List-Limit': '1000',
+            'Accept': 'application/json'
         }
         return req_headers
 
@@ -44,15 +46,16 @@ class QueryUpyun(object):
             headers.update({'x-list-iter': upyun_iter})
         url = self.upyun_api + key
         try:
-            response = requests.get(url, headers=headers, timeout=30)
-            if response.status_code == 200:
-                content = response.content.decode()
+            resp = requests.get(url, headers=headers, timeout=30)
+            if resp.status_code == 200:
+                content = resp.json()
                 try:
-                    iter_header = response.headers['x-upyun-list-iter']
+                    iter_header = content['iter']
                 except KeyError as e:
                     iter_header = 'g2gCZAAEbmV4dGQAA2VvZg'
-                items = content.split('\n')
-                resp = [dict(zip(['name', 'type', 'size', 'time'], x.split('\t'))) for x in items]
+                items = content['files']
+                resp = [{'name': x['name'], 'type': x['type'], 'size': x['length'], 'time': x['last_modified']} for x in
+                        items]
                 resp.append(iter_header)
                 return resp
             else:
@@ -60,7 +63,7 @@ class QueryUpyun(object):
                 if retry <= self.max_retry:
                     self.read_uss(uri, upyun_iter, retry=retry)
 
-                print(response.status_code, response.content)
+                print(resp.status_code, resp.json())
                 return None
         except Exception as e:
             print(e)
@@ -68,10 +71,18 @@ class QueryUpyun(object):
 
 
 class ListFile(QueryUpyun):
-    def __init__(self, bucket: str, username: str, password: str):
+    def __init__(self, bucket: str, username: str, password: str, detail: bool = False):
+        """
+
+        :param bucket: 存储服务名
+        :param username: 操作员
+        :param password: 操作员密码
+        :param detail: 是否显示详细信息：（路径，文件类型，文件大小），默认不显示
+        """
         super().__init__(username=username, bucket=bucket, password=password)
         self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.dir_list = []
+        self.detail = detail
 
     def write_file(self, line, error=False):
         """
@@ -81,10 +92,10 @@ class ListFile(QueryUpyun):
         :param error: Boolean
         :return: None
         """
-        with open(os.path.join(self.base_dir, '{}_file_list'.format(self.bucket)), 'a') as f:
+        with open(os.path.join(self.base_dir, '{}_file_list.csv'.format(self.bucket)), 'a') as f:
             f.write(line + '\n')
         if error:
-            with open(os.path.join(self.base_dir, '{}_error_list'.format(self.bucket)), 'a') as f:
+            with open(os.path.join(self.base_dir, '{}_error_list.csv'.format(self.bucket)), 'a') as f:
                 f.write(line + '\n')
 
     def clear_dir(self, path):
@@ -103,9 +114,9 @@ class ListFile(QueryUpyun):
         脚本重新执行时，检查是否有老旧文件列表，有就重命名
         :return:
         """
-        file_list_path = os.path.join(self.base_dir, '{}_file_list'.format(self.bucket))
+        file_list_path = os.path.join(self.base_dir, '{}_file_list.csv'.format(self.bucket))
         if os.path.exists(file_list_path):
-            os.rename(file_list_path, '{}_{}_bak'.format(file_list_path, str(int(time.time()))))
+            os.rename(file_list_path, '{}_{}_bak.csv'.format(file_list_path, str(int(time.time()))))
 
     def list_file(self, dir_name: str, upyun_iter: str = None):
         """
@@ -125,10 +136,14 @@ class ListFile(QueryUpyun):
                 self.clear_dir(dir_name)
                 continue
             new_path = dir_name + item['name'] if dir_name == '/' else dir_name + '/' + item['name']
-            if item['type'] == 'F':
+            if item['type'] == 'folder':
                 self.dir_list.append(new_path)
             else:
-                self.write_file(new_path)
+                if self.detail:
+                    line = '{},{},{}'.format(new_path, item['type'], item['size'])
+                else:
+                    line = new_path
+                self.write_file(line)
         return iter_str
 
     def cycle_filter(self, dir_name: str):
@@ -145,16 +160,8 @@ class ListFile(QueryUpyun):
     def main(self, dir_name: str):
         self.check_old_file_list()
         self.cycle_filter(dir_name=dir_name)
-        print(
-            '新开终端输入: \t'
-            'tail -f {}/{}_file_list\t'
-            '查看文件列表情况\n'.format(self.base_dir, self.bucket)
-        )
-        print(
-            '新开终端输入: \t'
-            'tail -f {}/{}_error_list\t'
-            '查看出现错误的文件列表\n'.format(self.base_dir, self.bucket)
-        )
+        print('文件列表保存路径在： {}/{}_file_list.csv'.format(self.base_dir, self.bucket))
+        print('出错的文件目录保存路径在： {}/{}_error_list.csv'.format(self.base_dir, self.bucket))
 
         while self.dir_list:
             pool_v2 = ThreadPool(10)
@@ -164,6 +171,8 @@ class ListFile(QueryUpyun):
 
 
 if __name__ == '__main__':
-    query_upyun = ListFile(bucket='', username='', password='')
+    # detail 参数默认为 False，如果设置为 True，将列出文件的 `文件路径`，`文件类型`，`文件大小`
+    # initial_path 默认为 '/' 从存储根目录开始列文件列表，可以自行指定目录，比如：initial_path = '/tmp', 列出 `/tmp` 路径下面的文件
+    query_upyun = ListFile(bucket='', username='', password='', detail=False)
     initial_path = '/'
     query_upyun.main(dir_name=initial_path)
