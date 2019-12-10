@@ -19,7 +19,7 @@ class QuertUpyun(object):
 		req_headers = {
 			"Authorization": "Basic " + b64encode((self.username + ':' + self.password).encode()).decode(),
 			'User-Agent':'Auth-Nie-Python'
-			# 'Content-Length':'0'
+
 		}
 		return req_headers
 
@@ -29,27 +29,34 @@ class QuertUpyun(object):
 		s = requests.Session()
 		key = '/' + self.bucket  + move_destination + move_source
 
-		r = s.put(self.upyun_api + key, headers=headers)
-		print(r.status_code)
-		print(r.headers)
+		respMove = s.put(self.upyun_api + key, headers=headers)
+		print("Move " + move_source + " to " + move_destination + move_source)
+
+		if respMove.status_code != 200:
+			with open('movePathError.txt', 'a') as f:
+				f.write(move_source + '\n')
 
 	def reqCopyFile(self, copy_source, copy_destination):
 		headers = deepcopy(self._auth())
 		headers['X-Upyun-Copy-Source'] = ('/' + self.bucket + copy_source).encode('utf-8').decode('latin1')
 		s = requests.Session()
 		key = '/' + self.bucket  + copy_destination + copy_source
-		# key = unquote('/' + self.bucket  + copy_destination + copy_source)
 
 		respCopy = s.put(self.upyun_api + key, headers=headers)
-		# print(respCopy.requests.headers)
-		print(respCopy.url)
-		print(respCopy.status_code)
-		# print(respCopy.request.headers)
+		print("Copy " + copy_source + ' To ' + copy_destination + copy_source)
+
+		if respCopy.status_code != 200:
+			with open('copyPathError.txt', 'a') as f:
+				f.write(copy_source +  '\n')
+
+
 
 if __name__ == '__main__':
-	q = QuertUpyun('', '', '')
-	# for i in open('file_list.txt'):
-	for i in open(''):
-		i = (i.rstrip())
-		q.reqCopyFile(i, '')
-		# q.reqMoveFile(i, 'move_to_folder')
+	copyAndMoveInit = QuertUpyun('aliguala', 'catalina', 'catalina')
+	for path in open('file.txt'):
+		path = (path.rstrip())
+		
+		# copyAndMoveInit.reqCopyFile(path, '/ccc')
+		copyAndMoveInit.reqMoveFile(path, '/move')
+	else:
+		print("Job is done!")
