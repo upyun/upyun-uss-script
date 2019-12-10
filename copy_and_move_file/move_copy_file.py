@@ -52,11 +52,11 @@ class QuertUpyun(object):
 
 
 if __name__ == '__main__':
-	copyAndMoveInit = QuertUpyun('aliguala', 'catalina', 'catalina')
-	for path in open('file.txt'):
+	copyAndMoveInit = QuertUpyun('BUCKET_NAME', 'OperatorName', 'OperatorPass')
+	for path in open('LocalListFilePath'):
 		path = (path.rstrip())
 		
-		# copyAndMoveInit.reqCopyFile(path, '/ccc')
-		copyAndMoveInit.reqMoveFile(path, '/move')
+		# copyAndMoveInit.reqCopyFile(path, '/COPYPATH')
+		copyAndMoveInit.reqMoveFile(path, '/MOVEPATH')
 	else:
 		print("Job is done!")
