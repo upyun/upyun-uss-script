@@ -26,7 +26,7 @@ String moveOrCopyTo = ""; //填写要移动到哪个路径
 线程数修改
 
 ```
-threadsMove_copy.handleList(data, 10); //线程数，当前设置为10个线程，过高易造成429错误
+threadsMove_copy.handleList(data, 5); //线程数，当前设置为5个线程，过高易造成429错误
 ```
 
 代码 **58** 行可以切换复制和移动文件方法
