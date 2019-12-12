@@ -29,7 +29,7 @@ public class ThreadsMove_Copy {
             data.add(uri);
         }
         ThreadsMove_Copy threadsMove_copy = new ThreadsMove_Copy();
-        threadsMove_copy.handleList(data, 10); //线程数，过大易出现429错误
+        threadsMove_copy.handleList(data, 5); //线程数，过大易出现429错误
     }
 
     /***
