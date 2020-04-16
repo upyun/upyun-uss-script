@@ -17,14 +17,14 @@ origin_bucket = ''  # (必填) 待拉取的服务名
 origin_username = ''  # (必填) 待拉取的服务名下授权的操作员名
 origin_password = ''  # (必填) 待拉取服务名下授权操作员的密码
 host = ''  # (必填)  待拉取的服务名的访问域名, 请使用 http// 或者 https:// 开头, 比如 'http://techs.upyun.com'
-origin_path = ''  # (必填) 待拉取的资源路径 (默认会拉取根目录下面的所有目录的文件)
+origin_path = ''  # (必填) 待拉取的资源路径 
 # --------------------------------------------
 
 # ----------目标迁移服务名, 操作员信息-------------
 target_bucket = ''  # (必填) 文件迁移的目标服务名
 target_username = ''  # (必填) 文件迁移的目标服务名的授权操作员名
 target_password = ''  # (必填) 文件迁移的目标服务名的授权操作员的密码
-save_as_prefix = ''  # (选填) 目标服务名的保存路径的前置路径 (如果不填写, 默认迁移后的路径和原路径相同)
+save_as_prefix = ''  # (必填) 目标服务名的保存路径的前置路径
 # --------------------------------------------
 
 notify_url = ''  # 将回调地址改成自己的服务器地址, 用来接收又拍云 POST 过来的异步拉取结果
@@ -41,7 +41,7 @@ def push_tasks(url, up):
             'url': host + url,  # 需要拉取文件的 URL
             'random': False,  # 是否追加随机数, 默认 false
             'overwrite': True,  # 是否覆盖，默认 True
-            'save_as': url
+            'save_as': save_as_prefix + url
         }
     ]
     if not notify_url:
@@ -117,14 +117,14 @@ def get_list(path):
                     try:
                         if not i['name']:
                             continue
-                        new_path = path + i['name'] if path == '/' else path + '/' + i['name']
+                        new_path = '/' + i['name'] if path == '/' else path + '/' + i['name']
                         if i['type'] == 'F':
                             queue.put(new_path)
                         elif i['type'] == 'N':
                             print(new_path)
-                            if save_as_prefix:
-                                new_path = save_as_prefix + new_path
                             push_tasks(new_path, up)
+                        else:
+                            sys.exit(0)
                     except Exception as e:
                         print(e)
             else:
@@ -143,3 +143,4 @@ def get_list(path):
 
 if __name__ == '__main__':
     get_list(origin_path)
+    print("Done!")
